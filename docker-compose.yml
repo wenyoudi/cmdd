@@ -1,8 +1,9 @@
 services:
   cassandra-1:
-    image: cassandra:5.0
+    image: cassandra:5.0.9
     container_name: cassandra-1
     hostname: cassandra-1
+    restart: unless-stopped
 
     environment:
       CASSANDRA_CLUSTER_NAME: consistency-cluster
@@ -13,10 +14,62 @@ services:
       HEAP_NEWSIZE: 200M
 
     ports:
-      - "9042:9042"
+      - "10001:9042"
 
     volumes:
       - cassandra1-data:/var/lib/cassandra
+
+    networks:
+      - cassandra-network
+
+  cassandra-2:
+    image: cassandra:5.0.9
+    container_name: cassandra-2
+    hostname: cassandra-2
+    restart: unless-stopped
+
+    environment:
+      CASSANDRA_CLUSTER_NAME: consistency-cluster
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_SEEDS: cassandra-1
+      MAX_HEAP_SIZE: 1G
+      HEAP_NEWSIZE: 200M
+
+    depends_on:
+      - cassandra-1
+
+    ports:
+      - "10002:9042"
+
+    volumes:
+      - cassandra2-data:/var/lib/cassandra
+
+    networks:
+      - cassandra-network
+
+  cassandra-3:
+    image: cassandra:5.0.9
+    container_name: cassandra-3
+    hostname: cassandra-3
+    restart: unless-stopped
+
+    environment:
+      CASSANDRA_CLUSTER_NAME: consistency-cluster
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_RACK: rack1
+      CASSANDRA_SEEDS: cassandra-1
+      MAX_HEAP_SIZE: 1G
+      HEAP_NEWSIZE: 200M
+
+    depends_on:
+      - cassandra-1
+
+    ports:
+      - "10003:9042"
+
+    volumes:
+      - cassandra3-data:/var/lib/cassandra
 
     networks:
       - cassandra-network
@@ -27,3 +80,5 @@ networks:
 
 volumes:
   cassandra1-data:
+  cassandra2-data:
+  cassandra3-data:
