@@ -1,1 +1,1 @@
-# distributed-db-project
+# Distributed Database Project
