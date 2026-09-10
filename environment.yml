@@ -1,0 +1,10 @@
+name: 5208
+
+channels:
+  - defaults
+
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - cassandra-driver==3.30.1
