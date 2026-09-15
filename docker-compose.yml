@@ -64,10 +64,16 @@ services:
       - cassandra-network
 
   cassandra-3:
-    image: cassandra:5.0.9
+    build:
+      context: .
+      dockerfile: Dockerfile.cassandra
+    image: cmdd-cassandra-netadmin:5.0.9
     container_name: cassandra-3
     hostname: cassandra-3
     restart: unless-stopped
+
+    cap_add:
+      - NET_ADMIN
 
     healthcheck:
       test: ["CMD", "cqlsh", "127.0.0.1", "9042", "-e", "SELECT release_version FROM system.local;"]
@@ -104,7 +110,9 @@ networks:
 volumes:
   cassandra1-data:
     name: cmdd_cassandra1-data-v2
+
   cassandra2-data:
     name: cmdd_cassandra2-data-v2
+
   cassandra3-data:
     name: cmdd_cassandra3-data-v2
