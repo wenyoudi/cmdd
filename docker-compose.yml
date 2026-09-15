@@ -5,6 +5,13 @@ services:
     hostname: cassandra-1
     restart: unless-stopped
 
+    healthcheck:
+      test: ["CMD", "cqlsh", "127.0.0.1", "9042", "-e", "SELECT release_version FROM system.local;"]
+      interval: 10s
+      timeout: 10s
+      start_period: 120s
+      retries: 30
+
     environment:
       CASSANDRA_CLUSTER_NAME: consistency-cluster
       CASSANDRA_DC: datacenter1
@@ -28,6 +35,13 @@ services:
     hostname: cassandra-2
     restart: unless-stopped
 
+    healthcheck:
+      test: ["CMD", "cqlsh", "127.0.0.1", "9042", "-e", "SELECT release_version FROM system.local;"]
+      interval: 10s
+      timeout: 10s
+      start_period: 120s
+      retries: 30
+
     environment:
       CASSANDRA_CLUSTER_NAME: consistency-cluster
       CASSANDRA_DC: datacenter1
@@ -37,7 +51,8 @@ services:
       HEAP_NEWSIZE: 200M
 
     depends_on:
-      - cassandra-1
+      cassandra-1:
+        condition: service_healthy
 
     ports:
       - "10002:9042"
@@ -54,6 +69,13 @@ services:
     hostname: cassandra-3
     restart: unless-stopped
 
+    healthcheck:
+      test: ["CMD", "cqlsh", "127.0.0.1", "9042", "-e", "SELECT release_version FROM system.local;"]
+      interval: 10s
+      timeout: 10s
+      start_period: 120s
+      retries: 30
+
     environment:
       CASSANDRA_CLUSTER_NAME: consistency-cluster
       CASSANDRA_DC: datacenter1
@@ -63,7 +85,8 @@ services:
       HEAP_NEWSIZE: 200M
 
     depends_on:
-      - cassandra-1
+      cassandra-2:
+        condition: service_healthy
 
     ports:
       - "10003:9042"
