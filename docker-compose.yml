@@ -103,5 +103,8 @@ networks:
 
 volumes:
   cassandra1-data:
+    name: cmdd_cassandra1-data-v2
   cassandra2-data:
+    name: cmdd_cassandra2-data-v2
   cassandra3-data:
+    name: cmdd_cassandra3-data-v2
