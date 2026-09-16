@@ -1,10 +1,10 @@
-name: DSA5208_Project1
-
+# Docker, Cassandra and iptables are provided by the Docker deployment.
+name: DSA5208_Project1_CMDD
 channels:
   - defaults
-
 dependencies:
   - python=3.12
   - pip
   - pip:
       - cassandra-driver==3.30.1
+      - pyasyncore==1.0.5
