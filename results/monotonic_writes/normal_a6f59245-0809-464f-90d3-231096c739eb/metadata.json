@@ -1,0 +1,63 @@
+{
+  "run_id": "a6f59245-0809-464f-90d3-231096c739eb",
+  "model": "MW",
+  "scenario": "normal",
+  "iterations": 10,
+  "schema_version": 3,
+  "row_grain": "operation",
+  "replication_factor": 3,
+  "pairs": [
+    [
+      "ONE",
+      "ONE"
+    ],
+    [
+      "ONE",
+      "QUORUM"
+    ],
+    [
+      "QUORUM",
+      "ONE"
+    ],
+    [
+      "QUORUM",
+      "QUORUM"
+    ],
+    [
+      "ALL",
+      "ONE"
+    ],
+    [
+      "ONE",
+      "ALL"
+    ]
+  ],
+  "mw_protocol": {
+    "baseline_version": 0,
+    "write1_version": 1,
+    "write2_version": 2,
+    "write1_coordinator": "node1",
+    "write2_coordinator": "node2",
+    "verification_nodes": [
+      "node1",
+      "node2",
+      "node3"
+    ],
+    "verification_read_cl": "ONE"
+  },
+  "observation_semantics": {
+    "version_2": "expected latest state after W1 and W2",
+    "version_0": "stale pre-write replica state; not classified as an MW ordering violation",
+    "version_1": "possible MW ordering anomaly under the experimental criterion"
+  },
+  "timestamp_design": {
+    "baseline": "baseline_ts",
+    "write1": "baseline_ts + 1",
+    "write2": "baseline_ts + 2",
+    "limitation": "Explicit increasing Cassandra timestamps encode the intended W1->W2 order. Cassandra timestamp-based last-write-wins conflict resolution may help preserve this order, so absence of an observed reversal is not proof of a general MW guarantee."
+  },
+  "started_at": "2026-09-21T19:22:29.252892+08:00",
+  "status": "completed",
+  "recovery": "not_needed",
+  "finished_at": "2026-09-21T19:22:30.963893+08:00"
+}
