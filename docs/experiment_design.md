@@ -74,13 +74,74 @@ TODO
 ### Monotonic Writes
 
 Definition:
-TODO
+Writes issued by the same client should be applied in the order in
+which they were issued.
 
 Violation condition:
-TODO
+Client A successfully performs W1(x, 1) followed by W2(x, 2), but
+after both writes have completed, an observation exposes the W1-only
+state (version 1) rather than the later version 2. In this experiment,
+such an observation is treated as a possible Monotonic-Writes ordering
+anomaly.
+
+A pre-write value (version 0) is treated as stale replica state rather
+than, by itself, evidence of a Monotonic-Writes ordering violation.
 
 Candidate experiment:
-TODO
+For each trial, initialize a unique key to version 0 using consistency
+level ALL. Client A then performs two successive writes:
+
+W1(x, 1) -> W2(x, 2)
+
+W2 is issued only after W1 succeeds. W1 is coordinated through node 1
+and W2 through node 2.
+
+The following write consistency-level combinations are tested:
+
+- ONE / ONE
+- ONE / QUORUM
+- QUORUM / ONE
+- QUORUM / QUORUM
+- ALL / ONE
+- ONE / ALL
+
+The experiment is repeated under three scenarios:
+
+1. Normal operation:
+   All three Cassandra nodes are available.
+
+2. Node failure:
+   Node 3 is stopped. Successful writes are verified through the two
+   surviving nodes.
+
+3. Network partition:
+   Cassandra internode communication between node 3 and nodes 1 and 2
+   is blocked while CQL access to node 3 remains available. This allows
+   the experiment to observe replica divergence during the partition.
+
+After W1 and W2 both succeed, verification reads use consistency level
+ONE through the relevant nodes.
+
+Observed versions are interpreted as follows:
+
+- version 2: latest state after W1 followed by W2
+- version 1: possible Monotonic-Writes ordering anomaly under the
+  experimental criterion
+- version 0: stale/pre-write replica state, not by itself an MW
+  ordering violation
+
+A failed write caused by an unavailable consistency level is recorded
+as an availability failure rather than a consistency violation.
+
+The experiment is repeated for 10 trials per consistency-level
+configuration.
+
+Note:
+The experiment uses explicitly increasing Cassandra timestamps.
+Because Cassandra uses timestamp-based last-write-wins conflict
+resolution, this may help preserve the intended W1 -> W2 order.
+Therefore, failure to observe an anomaly does not establish a general
+Monotonic-Writes guarantee.
 
 ### Writes Follow Reads
 
