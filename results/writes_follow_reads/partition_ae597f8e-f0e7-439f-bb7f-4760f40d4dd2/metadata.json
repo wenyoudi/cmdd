@@ -1,0 +1,83 @@
+{
+  "run_id": "ae597f8e-f0e7-439f-bb7f-4760f40d4dd2",
+  "model": "WFR",
+  "scenario": "partition",
+  "iterations": 10,
+  "schema_version": 3,
+  "row_grain": "operation",
+  "replication_factor": 3,
+  "pairs": [
+    [
+      "ONE",
+      "ONE"
+    ],
+    [
+      "ONE",
+      "QUORUM"
+    ],
+    [
+      "QUORUM",
+      "ONE"
+    ],
+    [
+      "QUORUM",
+      "QUORUM"
+    ],
+    [
+      "ALL",
+      "ONE"
+    ],
+    [
+      "ONE",
+      "ALL"
+    ]
+  ],
+  "wfr_protocol": {
+    "baseline": {
+      "parent": 0,
+      "child": 0,
+      "consistency": "ALL"
+    },
+    "parent_write": {
+      "client": "B",
+      "value": 1,
+      "consistency": "QUORUM",
+      "coordinator": "node1"
+    },
+    "dependency_read": {
+      "client": "A",
+      "coordinator": "node1",
+      "consistency": "tested read_cl"
+    },
+    "dependent_write": {
+      "client": "A",
+      "field": "child",
+      "value": 1,
+      "consistency": "tested write_cl",
+      "coordinator": "node3"
+    },
+    "verification_nodes": [
+      "node1",
+      "node2",
+      "node3"
+    ],
+    "verification_read_cl": "ONE"
+  },
+  "anomaly_criterion": "dependency established (A read parent=1), dependent child=1 write succeeded, and one joint query at the same verification node observed parent=0 and child=1",
+  "classification_notes": {
+    "dependency_read_failure": "availability failure; not a violation",
+    "dependency_not_established": "parent was not observed as 1; dependent write omitted",
+    "dependent_write_failure": "availability failure; not a violation",
+    "all_unavailable_under_fault": "recorded as the relevant operation failure",
+    "wfr_anomaly": "possible anomaly under this experimental criterion, not a general proof"
+  },
+  "started_at": "2026-09-22T19:54:26.974291+08:00",
+  "status": "completed",
+  "recovery": "verified",
+  "fault_views": {
+    "1": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack \nUN  172.18.0.3  237.29 KiB  16      100.0%            9e038757-3299-469e-ba09-c388affb4698  rack1\nDN  172.18.0.4  219.62 KiB  16      100.0%            5e764b33-8170-406f-968b-70aa6dcdb6c9  rack1\nUN  172.18.0.2  215.59 KiB  16      100.0%            9db14866-b07a-44a1-ba75-fcaf4403f671  rack1\n\n",
+    "2": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack \nUN  172.18.0.3  237.29 KiB  16      100.0%            9e038757-3299-469e-ba09-c388affb4698  rack1\nDN  172.18.0.4  219.62 KiB  16      100.0%            5e764b33-8170-406f-968b-70aa6dcdb6c9  rack1\nUN  172.18.0.2  215.59 KiB  16      100.0%            9db14866-b07a-44a1-ba75-fcaf4403f671  rack1\n\n",
+    "3": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack \nDN  172.18.0.3  237.29 KiB  16      100.0%            9e038757-3299-469e-ba09-c388affb4698  rack1\nUN  172.18.0.4  219.62 KiB  16      100.0%            5e764b33-8170-406f-968b-70aa6dcdb6c9  rack1\nDN  172.18.0.2  215.59 KiB  16      100.0%            9db14866-b07a-44a1-ba75-fcaf4403f671  rack1\n\n"
+  },
+  "finished_at": "2026-09-22T19:54:54.074627+08:00"
+}
