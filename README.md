@@ -1,22 +1,38 @@
-# Cassandra：Read-your-writes 实验
+# Cassandra Read-Your-Writes Experiments
 
-## 目标与文件
+## Overview
 
-验证同一个客户端成功写入数据后，接着读取时是否能看到自己的写入。每轮使用一个独立 key，先将版本 0 写到全部副本，再写版本 1 并立即读取。
+This project tests whether a logical client can observe its own acknowledged writes in a three-node Apache Cassandra cluster. It compares six write/read consistency configurations under normal operation, single-node failure, and network partition.
 
-| 文件 | 用途 |
+The experiment uses a fixed number of independent trials. Each trial uses a new UUID key initialized to version `0` on all replicas. Client A writes version `1` and, only if the write succeeds, immediately reads the same key. Initialization and measurement use explicitly increasing timestamps.
+
+## Project Files
+
+| File | Purpose |
 |---|---|
-| `read_your_writes.py` | 唯一实验实现：正常运行、节点故障、网络分区、记录与汇总 |
-| `ryw_experiments.py` | 批量运行三个场景，每组 100 轮、每个场景重复 2 次 |
-| `docker-compose.yml` | 部署三个节点，客户端端口为 10001、10002、10003 |
-| `Dockerfile.cassandra` | 给 node3 安装 iptables，配合 Compose 的 NET_ADMIN 权限进行网络分区 |
-| `environment.yml` | Python 3.12、cassandra-driver 3.30.1、pyasyncore 1.0.5 |
+| `read_your_writes.py` | Runs experiments, injects faults, records operations, and restores the cluster. |
+| `ryw_experiments.py` | Runs all three scenarios sequentially, with 100 trials per configuration and three repetitions per scenario. |
+| `summarize_ryw.py` | Combines eligible experiment summaries into one CSV table. |
+| `docker-compose.yml` | Defines the three-node Cassandra deployment. |
+| `Dockerfile.cassandra` | Installs iptables on node3 for network-partition experiments. |
+| `environment.yml` | Defines the Python environment and dependencies. |
+| `results/` | Contains operation logs, per-run summaries, and metadata. |
 
-## 1. 准备环境
+## 1. Environment and Installation
 
-以下命令在项目目录的 PowerShell 中运行。先打开 Docker Desktop，使用 Linux containers。
+Run the commands below in PowerShell from the project root. Start Docker Desktop with Linux containers enabled.
 
-使用当前项目的部署配置启动集群：
+The deployment uses Cassandra 5.0.9. The Python environment specifies Python 3.12, cassandra-driver 3.30.1, and pyasyncore 1.0.5. The three nodes belong to `datacenter1`. The experiment uses the `ryw_matrix.samples` table with `NetworkTopologyStrategy` and replication factor `RF=3`.
+
+| Container | Host CQL port | Role in the experiments |
+|---|---:|---|
+| `cassandra-1` | 10001 | Write coordinator |
+| `cassandra-2` | 10002 | Read coordinator in normal and node-failure scenarios |
+| `cassandra-3` | 10003 | Additional normal read coordinator; stopped or isolated in fault scenarios |
+
+The container CQL port is 9042. A coordinator handles the client request; it is not necessarily the only replica participating in that operation.
+
+### Start the cluster
 
 ```powershell
 docker compose up -d --build
@@ -24,149 +40,199 @@ docker compose ps
 docker exec cassandra-1 nodetool status
 ```
 
-等三个容器健康、三个节点都是 `UN` 再实验。`--build` 用于构建包含 iptables 的 node3 镜像；仅更新文件不会更新已运行容器。已有命名数据卷继续使用。三个节点均使用 Cassandra 5.0.9。
+Wait until all containers are healthy and all three nodes are `UN` (Up/Normal). The experiment also checks the cluster before sampling. Building the deployment ensures that node3 has iptables; existing named data volumes are reused.
 
-确认 node3 的工具和权限（只读检查，不会断网）：
+Check node3's firewall access without changing any rules:
 
 ```powershell
 docker exec --user root cassandra-3 iptables -S
 ```
 
-有 `.venv` 时直接使用下方命令。新电脑可用 Conda：
+### Set up Python
+
+If the project already has a working `.venv`, use the `.venv/Scripts/python.exe` commands below.
+
+Alternatively, create and activate the supplied Conda environment:
 
 ```powershell
 conda env create -f environment.yml
-conda activate DSA5208_Project1
+conda activate DSA5208_Project1_CMDD
 ```
 
-使用 Conda 时，将下面的 `.venv/Scripts/python.exe` 换成 `python`。实验使用 `ryw_matrix.samples`，复制因子 RF=3，不修改组员的产品表。
-
-已有同名 Conda 环境时，可更新依赖：
+To update an existing environment:
 
 ```powershell
-conda env update -n DSA5208_Project1 -f environment.yml
-conda activate DSA5208_Project1
+conda env update -n DSA5208_Project1_CMDD -f environment.yml
 ```
 
-`pyasyncore` 提供 Python 3.12 所需的 asyncore 兼容模块。Docker Desktop、Compose 和容器内的 iptables 不在 Conda 环境中安装，由 Docker 部署提供。
+For individual experiments and CSV aggregation in Conda, replace `.venv/Scripts/python.exe` with `python`. The batch runner currently hardcodes `.venv/Scripts/python.exe`; a Conda-only installation must either use the individual commands or update that interpreter path before using the batch runner.
 
-## 2. 运行实验
+`pyasyncore` supplies compatibility support required by the driver on Python 3.12. Docker, Cassandra, and iptables are provided separately through the Docker deployment.
 
-默认只测正常运行，每组 30 轮；不再自动插入关机演示。默认比较六组配置：ONE/ONE、ONE/QUORUM、QUORUM/ONE、QUORUM/QUORUM、ALL/ONE、ONE/ALL（写级别/读级别）。
+## 2. Experimental Design
 
-先跑每组 3 轮，检查流程：
+All configurations are written in **write/read order**:
+
+| Write CL | Read CL | Required write responses + read responses | Replica intersection guaranteed under the stated assumptions? |
+|---|---|---:|---|
+| ONE | ONE | 2 | No |
+| ONE | QUORUM | 3 | No |
+| QUORUM | ONE | 3 | No |
+| QUORUM | QUORUM | 4 | Yes |
+| ALL | ONE | 4 | Yes |
+| ONE | ALL | 4 | Yes |
+
+With RF=3, ONE, QUORUM, and ALL require responses from one, two, and three replicas respectively. Under this experiment's single-writer, fixed-topology, increasing-timestamp conditions, configurations with `W + R > RF` are expected to satisfy RYW when both operations succeed. Configurations without guaranteed intersection may still show no violations in a finite experiment.
+
+All keys are initialized at ALL before fault injection. For fault scenarios, sampling begins only after the expected fault topology is confirmed.
+
+| Scenario | Fault setup | Write coordinator | Read coordinator |
+|---|---|---|---|
+| `normal` | All nodes remain available. | node1 | Alternates between node2 and node3 |
+| `node_failure` | Stop node3 and confirm it is down before sampling. | node1 | node2 |
+| `partition` | Isolate node3 from internode communication while retaining client access. | node1 | node3 |
+
+The partition blocks node3's TCP ports 7000/7001 using the dedicated `CMDD_RYW` iptables chain. CQL access remains available. All connections are controlled sequentially by the same logical client A.
+
+In the partition scenario, ONE/ONE and QUORUM/ONE are expected to expose stale reads through isolated node3. Reads requiring QUORUM or ALL through that node are expected to fail, and writes requiring ALL are expected to fail. These failures are availability outcomes, not successful stale observations.
+
+## 3. Run the Experiments
+
+Run experiments sequentially. Other group members should not use the cluster while fault experiments are running.
+
+### Quick check
 
 ```powershell
 .venv/Scripts/python.exe read_your_writes.py --iterations 3
 ```
 
-正式采样示例：
+Without arguments, the experiment runs the normal scenario with 30 trials per configuration. Both defaults can be overridden.
+
+### One scenario, all six configurations
 
 ```powershell
 .venv/Scripts/python.exe read_your_writes.py --scenario normal --iterations 100
-.venv/Scripts/python.exe read_your_writes.py --scenario node_failure --iterations 30
-.venv/Scripts/python.exe read_your_writes.py --scenario partition --iterations 30
+.venv/Scripts/python.exe read_your_writes.py --scenario node_failure --iterations 100
+.venv/Scripts/python.exe read_your_writes.py --scenario partition --iterations 100
 ```
 
-三条命令分别运行，不要同时运行；故障实验期间其他组员也不要使用集群。
+### One configuration
 
-只测一组时，同时指定读写级别：
+Specify both consistency levels together:
 
 ```powershell
 .venv/Scripts/python.exe read_your_writes.py --scenario normal --iterations 100 --write-cl QUORUM --read-cl QUORUM
 ```
 
-| 场景 | 做什么 | 读写入口 |
-|---|---|---|
-| normal | 三个节点正常，逐轮写入版本 1 后读取 | node1 写，node2/node3 交替读 |
-| node_failure | 所有 key 初始化后停止 node3，确认离线后测试，结束后恢复 | node1 写，node2 读 |
-| partition | 初始化后阻断 node3 的 TCP 7000/7001，保留客户端 9042，确认分区后测试并恢复 | node1 写，node3 读 |
-
-“入口”指协调节点，数据库仍按一致性级别访问副本。同一客户端 A 串行控制这些连接。
-
-分区在 node3 内通过 `docker exec --user root ... iptables` 添加 `CMDD_RYW` 独立规则链。节点仍运行，但 node3 收不到新写入；其客户端端口仍可连接。不要同时手工添加其他断网规则。
-
-### 批量运行
+### Full batch
 
 ```powershell
 .venv/Scripts/python.exe ryw_experiments.py
 ```
 
-批量脚本依次运行 `normal`、`node_failure`、`partition`，每个场景重复 2 次，每次六组配置、每组 100 轮。全部成功时共 6 次运行、3600 条试验记录；每次成功运行后等待 5 秒。修改脚本顶部的 `SCENARIOS`、`ITERATIONS`、`REPEATS` 可调整规模。
+The current batch settings are `ITERATIONS = 100` and `REPEATS = 3`. A fully completed batch produces nine runs and 5,400 trials:
 
-当前脚本的子进程解释器固定为 `.venv/Scripts/python.exe`，必须在项目根目录运行并存在该环境。仅使用 Conda 时，请使用上面的单次实验命令；即使用 `python ryw_experiments.py` 启动，子进程仍会使用 `.venv`。
+`3 scenarios x 6 configurations x 3 repetitions x 100 trials`.
 
-某次运行返回非零退出码时，仅跳过当前场景的剩余重复，随后继续下一个场景。末尾的 `All experiments finished!` 不代表全部成功，应逐个检查结果状态和恢复记录。
+The script waits five seconds after each successful run. If a run exits with an error, it skips the remaining repetitions of that scenario and proceeds to the next scenario. The final `All experiments finished!` message does not establish that every run succeeded: check each run's metadata and recovery status.
 
-## 3. 结果怎么读？
+## 4. Output Files and Interpretation
 
-每次运行打印一个独立的 `results/<scenario>_<UUID>` 目录：
+Each run creates a separate `results/<scenario>_<UUID>/` directory containing:
 
-- `trials.csv`：一行是一次实际执行的写入或读取操作，列顺序见下表。同一轮写后读共享 `trial_id`；写入失败时不执行读取，因此只有一行。初始化版本 0 的操作不计入此表。
-- `summary.csv`：每种配置的轮数、有效读取数、违反次数、违反率和失败次数，可直接用 Excel 打开。
-- `metadata.json`：实际软件版本、部署配置文本、运行状态、故障视图和恢复结果。配置文本不代表运行容器已经完成重建。
-
-| 字段 | 含义 |
+| File | Contents |
 |---|---|
-| `trial_id` | 运行 UUID、写级别、读级别、组内轮次组成的标识 |
-| `model` | 固定为 `RYW`，表示 Read-your-writes 一致性模型 |
-| `scenario` | `normal`、`node_failure` 或 `partition` |
-| `client` | 当前固定为 `A` |
-| `operation` | `WRITE` 或 `READ` |
-| `key` | 本轮数据的 UUID 主键 |
-| `version_written` | 本轮尝试写入的版本，当前为 1；读行保留此值用于比较 |
-| `version_observed` | 实际读到的版本；写操作、读取失败或空记录时留空 |
-| `read_cl` | 本轮的读取一致性级别 |
-| `write_cl` | 本轮的写入一致性级别 |
-| `target_node` | 此次请求的协调节点，如 `node1`；不是所有参与副本 |
-| `success` | 此次请求是否成功，`True` / `False`；旧值或空记录也是成功读取 |
-| `violation` | 成功读取时判断是否违反 RYW；写操作和失败请求留空 |
-| `latency_ms` | 客户端测得的单次请求耗时（毫秒），包括失败请求 |
-| `timestamp` | 操作开始时间，ISO 8601 格式，含时区 |
-| `error` | 失败时的异常类型和信息，成功时留空 |
+| `trials.csv` | One row per attempted measured WRITE or READ operation. Initialization operations are excluded. |
+| `summary.csv` | Counts and violation rates for each consistency configuration in that run. |
+| `metadata.json` | Run parameters, software versions, deployment configuration, status, fault evidence, and recovery results. |
 
-新的明细不再输出 `outcome`，下列分类用于解释汇总统计：
+A write and its subsequent read share the same `trial_id`. If the write fails, the read is skipped and only the write row is recorded. Consequently, the number of operation rows is not the number of trials.
 
-| 分类 | 意思 |
+### Operation fields
+
+| Field | Meaning |
 |---|---|
-| PASS | 写入确认后，成功读取到版本 1 或更新值 |
-| VIOLATION | 写入确认后，成功读取却得到旧值或空记录 |
-| WRITE_FAILED | 写入未确认，跳过本轮读取；超时并不证明写入没有生效 |
-| READ_FAILED | 写入确认，但读取失败；不算 RYW 违反 |
+| `trial_id` | Run UUID, write/read configuration, and trial index. |
+| `model` | `RYW`. |
+| `scenario` | `normal`, `node_failure`, or `partition`. |
+| `client` | Logical client `A`. |
+| `operation` | `WRITE` or `READ`. |
+| `key` | The trial's UUID key. |
+| `version_written` | Expected written version, currently `1`. |
+| `version_observed` | Returned version; blank for writes, failed reads, or missing records. |
+| `read_cl`, `write_cl` | Requested consistency levels. |
+| `target_node` | Coordinator contacted for this operation. |
+| `success` | Whether the request completed successfully. A stale or empty result can still be a successful request. |
+| `violation` | Whether a successful read violates RYW; blank for writes and failed reads. |
+| `latency_ms` | Client-observed request latency, including failed requests. |
+| `timestamp` | Operation start time in ISO 8601 format with timezone. |
+| `error` | Exception type and message for a failed operation. |
 
-违反率 = `violations / valid_reads`，有效读取只包括 PASS 与 VIOLATION。没有有效读取时留空，不能写成 0%。退出码 0 表示采样流程完成，不代表没有违反或请求失败；应检查 summary.csv。
+### Outcome definitions
 
-正式报告引用 `status=completed` 的完整运行；故障场景还要确认 recovery 已验证。中止时保留已有样本与状态，不把它当成完整实验。
+| Outcome | Definition |
+|---|---|
+| PASS | An acknowledged write is followed by a successful read of version 1 or newer. |
+| VIOLATION | An acknowledged write is followed by a successful read of an older version or a missing record. |
+| WRITE_FAILED | The write is not acknowledged; the subsequent read is skipped. |
+| READ_FAILED | The write is acknowledged, but the subsequent read fails. |
 
-`summary.csv` 仍按写后读轮次汇总，`trials` 为写操作数，不是明细行数。批量运行的 3600 轮最多产生 7200 行操作记录。新格式在 metadata 中标记 `schema_version=2`、`row_grain=operation`；已有历史 CSV 保持原格式。
+These categories explain the results; there is no separate `outcome` column in the operation CSV.
 
-## 4. 预测与解释
+The violation rate is `violations / valid_reads`, where valid reads include both passes and violations. If no valid reads exist, the per-run rate is blank and the aggregated table displays `N/A`, not 0%. A write timeout does not prove that the write had no effect.
 
-RF=3 时 ONE、QUORUM、ALL 分别需要 1、2、3 个副本回应。单写入者、无 TTL/删除、固定拓扑、递增写入时间戳下，R+W>3 的组合有副本交集，预期成功读取满足 RYW。因此 QUORUM/QUORUM、ALL/ONE、ONE/ALL 有交集保证，其余三组不保证。
+Use completed runs in the report. Fault runs must also have verified recovery. Exit code 0 indicates that the experiment procedure completed, not that every database request succeeded or that there were no violations.
 
-正常环境下弱配置也可能没有旧读。分区后在少数侧读取时，ONE/ONE 和 QUORUM/ONE 预期能展示旧读；需要 QUORUM 或 ALL 的读取预计失败；ALL 写入预计失败。故障或分区中的错误需作为可用性结果单独统计。
+The fixed-trial format uses `schema_version=2` and `row_grain=operation`. Do not combine it with continuous-workload results or older incompatible formats.
 
-每轮 key 独立，版本 0 与版本 1 使用明确递增的时间戳。这个受控实验不覆盖并发写入、客户端时钟异常或全部故障布局。没有观察到违反不等于证明保证。
+## 5. Generate the Combined CSV Table
 
-## 5. 恢复与旧命令变化
+After collecting complete runs for all three scenarios:
 
-普通异常会进入自动恢复流程；强制结束进程或关机后，手动恢复：
+```powershell
+.venv/Scripts/python.exe summarize_ryw.py
+```
+
+The script writes only one aggregated table:
+
+```text
+results/aggregated/ryw_complete_table.csv
+```
+
+It sums counts across eligible runs and then calculates violation rates. It does not average per-run percentages. The table contains 18 rows: three scenarios times six configurations.
+
+The aggregator reads run directories directly beneath `results/`, requires all six configurations in each eligible run, rejects duplicate run IDs and inconsistent counts, and skips incomplete runs or fault runs without verified recovery. Each scenario must have at least one eligible run. Keep single-configuration checks separate from the collection used for the final table.
+
+All eligible runs in the selected input directory are included, including additional repetitions collected later. To select another collection and output directory:
+
+```powershell
+.venv/Scripts/python.exe summarize_ryw.py --results-dir path/to/runs --output-dir path/to/output
+```
+
+Close the output CSV in Excel or WPS before regenerating it if the application locks the file.
+
+## 6. Recovery
+
+Fault experiments attempt to restore the cluster on completion or an exception. If the process is forcibly terminated, run:
 
 ```powershell
 .venv/Scripts/python.exe read_your_writes.py --recover
 ```
 
-该命令启动 node3，仅删除本实验的 CMDD_RYW 规则，检查三个节点 UN 且可连接。仅关节点而旧镜像没有 iptables 时，可先 `docker start cassandra-3`，再检查集群。其他实验添加的网络规则不在本脚本恢复范围内。
+This starts node3, removes only this experiment's `CMDD_RYW` rules, and verifies that all three nodes are UN and reachable through CQL. It does not remove firewall rules belonging to other experiments.
 
-旧参数 `--normal-only` 已取消，改用 `--scenario normal`（也是默认值）；`--error-sample` 已取消，使用 `--scenario node_failure`。旧版测试“写后关节点”，现在故障场景是“先故障再测写后读”。新旧数据的 key、行结构和操作顺序不同，不能直接混合统计。
+## 7. Limitations and Validation
 
-## 验证状态与提交
+The experiment uses Docker containers on one physical machine, one logical client, independent keys, fixed coordinator choices, and increasing timestamps. It does not evaluate concurrent writers, clock anomalies, TTLs, deletions, or all possible failure layouts.
 
-截至 2026-09-16，当前 `results/` 中保留了三个场景各 3 次运行的记录。各次 `metadata.json` 均标记为 `completed`，每组配置 100 轮；节点故障和分区场景的恢复字段均记录为 `verified: three UN nodes and CQL reachable`。这些是已有运行记录，本次文档更新未重新执行集群实验。批量脚本当前重复次数为 2，与历史记录数量无须相同。
+The node-failure scenario reads through a surviving node, whereas the partition scenario reads through the isolated node. Interpret differences with both fault type and coordinator placement in mind. Zero observed violations do not establish a universal guarantee, and operation failures must be reported separately from RYW violations.
 
-检查依赖导入和命令行入口（不会启动实验）：
+The existing fixed-trial dataset was previously checked as nine completed runs totaling 5,400 trials, with fault recovery recorded as verified. Updating this README does not rerun the database experiments.
+
+To check dependency imports and command-line options without starting experiments:
 
 ```powershell
 .venv/Scripts/python.exe -c "import cassandra, asyncore; print(cassandra.__version__)"
 .venv/Scripts/python.exe read_your_writes.py --help
+.venv/Scripts/python.exe summarize_ryw.py --help
 ```

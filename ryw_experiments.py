@@ -3,8 +3,8 @@ import time
 
 # ========= Experiment Settings =========
 SCENARIOS = ["normal", "node_failure", "partition"]
-ITERATIONS = 10      # 每个 CL pair 跑多少次
-REPEATS = 1           # 每个 scenario 重复几轮
+ITERATIONS = 100      # every CL pair run <iterations> times
+REPEATS = 3           # each case repeats 3 times
 
 # ======================================
 
@@ -29,7 +29,7 @@ for scenario in SCENARIOS:
             print(f"Experiment failed: {scenario} Run {run}")
             break
 
-        # 给 Cassandra 一点恢复时间（保险）
+        # give Cassandra some time to recover
         time.sleep(5)
 
 print("\nAll experiments finished!")

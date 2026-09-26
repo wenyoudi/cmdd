@@ -1,11 +1,11 @@
 {
-  "run_id": "592b0470-5322-4092-9f12-bfba72babacb",
+  "run_id": "d8a88999-6a9a-4cf0-ac9f-188470e02c0b",
   "model": "RYW",
   "schema_version": 2,
   "row_grain": "operation",
-  "scenario": "normal",
-  "iterations": 10,
-  "started_at": "2026-09-16T19:58:50.222606+08:00",
+  "scenario": "partition",
+  "iterations": 100,
+  "started_at": "2026-09-16T20:54:04.376381+08:00",
   "status": "completed",
   "rf": 3,
   "fault_tool": "node3 iptables (Dockerfile.cassandra)",
@@ -35,7 +35,7 @@
       "ALL"
     ]
   ],
-  "recovery": "not_needed",
+  "recovery": "verified: three UN nodes and CQL reachable",
   "fault_timing": "before measured writes",
   "docker_version": "29.7.2",
   "compose": "name: cmdd\nservices:\n  cassandra-1:\n    container_name: cassandra-1\n    environment:\n      CASSANDRA_CLUSTER_NAME: consistency-cluster\n      CASSANDRA_DC: datacenter1\n      CASSANDRA_RACK: rack1\n      CASSANDRA_SEEDS: cassandra-1\n      HEAP_NEWSIZE: 200M\n      MAX_HEAP_SIZE: 1G\n    hostname: cassandra-1\n    healthcheck:\n      test:\n        - CMD\n        - cqlsh\n        - 127.0.0.1\n        - \"9042\"\n        - -e\n        - SELECT release_version FROM system.local;\n      timeout: 10s\n      interval: 10s\n      retries: 30\n      start_period: 2m0s\n    image: cassandra:5.0.9\n    networks:\n      cassandra-network: null\n    ports:\n      - mode: ingress\n        target: 9042\n        published: \"10001\"\n        protocol: tcp\n    restart: unless-stopped\n    volumes:\n      - type: volume\n        source: cassandra1-data\n        target: /var/lib/cassandra\n        volume: {}\n  cassandra-2:\n    container_name: cassandra-2\n    depends_on:\n      cassandra-1:\n        condition: service_healthy\n        required: true\n    environment:\n      CASSANDRA_CLUSTER_NAME: consistency-cluster\n      CASSANDRA_DC: datacenter1\n      CASSANDRA_RACK: rack1\n      CASSANDRA_SEEDS: cassandra-1\n      HEAP_NEWSIZE: 200M\n      MAX_HEAP_SIZE: 1G\n    hostname: cassandra-2\n    healthcheck:\n      test:\n        - CMD\n        - cqlsh\n        - 127.0.0.1\n        - \"9042\"\n        - -e\n        - SELECT release_version FROM system.local;\n      timeout: 10s\n      interval: 10s\n      retries: 30\n      start_period: 2m0s\n    image: cassandra:5.0.9\n    networks:\n      cassandra-network: null\n    ports:\n      - mode: ingress\n        target: 9042\n        published: \"10002\"\n        protocol: tcp\n    restart: unless-stopped\n    volumes:\n      - type: volume\n        source: cassandra2-data\n        target: /var/lib/cassandra\n        volume: {}\n  cassandra-3:\n    build:\n      context: D:\\python\\Projects\\cmdd\n      dockerfile: Dockerfile.cassandra\n    cap_add:\n      - NET_ADMIN\n    container_name: cassandra-3\n    depends_on:\n      cassandra-2:\n        condition: service_healthy\n        required: true\n    environment:\n      CASSANDRA_CLUSTER_NAME: consistency-cluster\n      CASSANDRA_DC: datacenter1\n      CASSANDRA_RACK: rack1\n      CASSANDRA_SEEDS: cassandra-1\n      HEAP_NEWSIZE: 200M\n      MAX_HEAP_SIZE: 1G\n    hostname: cassandra-3\n    healthcheck:\n      test:\n        - CMD\n        - cqlsh\n        - 127.0.0.1\n        - \"9042\"\n        - -e\n        - SELECT release_version FROM system.local;\n      timeout: 10s\n      interval: 10s\n      retries: 30\n      start_period: 2m0s\n    image: cmdd-cassandra-netadmin:5.0.9\n    networks:\n      cassandra-network: null\n    ports:\n      - mode: ingress\n        target: 9042\n        published: \"10003\"\n        protocol: tcp\n    restart: unless-stopped\n    volumes:\n      - type: volume\n        source: cassandra3-data\n        target: /var/lib/cassandra\n        volume: {}\nnetworks:\n  cassandra-network:\n    name: cmdd_cassandra-network\n    driver: bridge\nvolumes:\n  cassandra1-data:\n    name: cmdd_cassandra1-data-v2\n  cassandra2-data:\n    name: cmdd_cassandra2-data-v2\n  cassandra3-data:\n    name: cmdd_cassandra3-data-v2\n",
@@ -46,5 +46,11 @@
   ],
   "python_version": "3.12.14",
   "driver_version": "3.30.1",
-  "finished_at": "2026-09-16T19:59:06.025332+08:00"
+  "fault_views": {
+    "1": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack \nDN  172.18.0.3  780.65 KiB  16      100.0%            2fec8857-ef02-4775-b4ce-85e157b2401c  rack1\nUN  172.18.0.2  276.07 KiB  16      100.0%            b9db0307-03a4-4cce-a065-9433092483e1  rack1\nUN  172.18.0.4  295.8 KiB   16      100.0%            f7a270b5-ff5d-4bf5-b6d3-21499b4808cd  rack1\n\n",
+    "2": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack \nDN  172.18.0.3  780.65 KiB  16      100.0%            2fec8857-ef02-4775-b4ce-85e157b2401c  rack1\nUN  172.18.0.2  276.07 KiB  16      100.0%            b9db0307-03a4-4cce-a065-9433092483e1  rack1\nUN  172.18.0.4  295.8 KiB   16      100.0%            f7a270b5-ff5d-4bf5-b6d3-21499b4808cd  rack1\n\n",
+    "3": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack \nUN  172.18.0.3  780.65 KiB  16      100.0%            2fec8857-ef02-4775-b4ce-85e157b2401c  rack1\nDN  172.18.0.2  276.07 KiB  16      100.0%            b9db0307-03a4-4cce-a065-9433092483e1  rack1\nDN  172.18.0.4  295.8 KiB   16      100.0%            f7a270b5-ff5d-4bf5-b6d3-21499b4808cd  rack1\n\n"
+  },
+  "firewall": "-P INPUT ACCEPT\n-P FORWARD ACCEPT\n-P OUTPUT ACCEPT\n-N CMDD_RYW\n-A INPUT -j CMDD_RYW\n-A OUTPUT -j CMDD_RYW\n-A CMDD_RYW -p tcp -m multiport --dports 7000,7001 -j DROP\n-A CMDD_RYW -p tcp -m multiport --sports 7000,7001 -j DROP\n",
+  "finished_at": "2026-09-16T20:55:17.921198+08:00"
 }
