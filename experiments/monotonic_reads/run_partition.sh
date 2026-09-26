@@ -24,7 +24,7 @@ RUN_PY="$SCRIPT_DIR/run.py"
 PARTITION_SCRIPT="$SCRIPT_DIR/partition_node3.sh"
 HEAL_SCRIPT="$SCRIPT_DIR/heal_node3.sh"
 
-RESULT_DIR="$PROJECT_ROOT/results"
+RESULT_DIR="$PROJECT_ROOT/results/monotonic_reads"
 
 mkdir -p "$RESULT_DIR"
 

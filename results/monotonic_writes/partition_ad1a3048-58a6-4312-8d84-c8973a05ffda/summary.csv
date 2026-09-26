@@ -1,0 +1,7 @@
+﻿write1_cl,write2_cl,trials,completed_trials,successful_reads,latest_reads,stale_prewrite_reads,w1_only_reads,trials_with_stale_state,trials_with_w1_only_state,write1_failed,write2_failed,verify_failed
+ONE,ONE,10,10,30,20,10,0,10,0,0,0,0
+ONE,QUORUM,10,10,30,20,10,0,10,0,0,0,0
+QUORUM,ONE,10,10,30,20,10,0,10,0,0,0,0
+QUORUM,QUORUM,10,10,30,20,10,0,10,0,0,0,0
+ALL,ONE,10,0,0,0,0,0,0,0,10,0,0
+ONE,ALL,10,0,0,0,0,0,0,0,0,10,0

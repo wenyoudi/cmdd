@@ -1,0 +1,78 @@
+{
+  "run_id": "b3d6d95d-0ef4-43e4-9706-6ec88a924041",
+  "model": "WFR",
+  "scenario": "normal",
+  "iterations": 10,
+  "schema_version": 3,
+  "row_grain": "operation",
+  "replication_factor": 3,
+  "pairs": [
+    [
+      "ONE",
+      "ONE"
+    ],
+    [
+      "ONE",
+      "QUORUM"
+    ],
+    [
+      "QUORUM",
+      "ONE"
+    ],
+    [
+      "QUORUM",
+      "QUORUM"
+    ],
+    [
+      "ALL",
+      "ONE"
+    ],
+    [
+      "ONE",
+      "ALL"
+    ]
+  ],
+  "wfr_protocol": {
+    "baseline": {
+      "parent": 0,
+      "child": 0,
+      "consistency": "ALL"
+    },
+    "parent_write": {
+      "client": "B",
+      "value": 1,
+      "consistency": "QUORUM",
+      "coordinator": "node1"
+    },
+    "dependency_read": {
+      "client": "A",
+      "coordinator": "node1",
+      "consistency": "tested read_cl"
+    },
+    "dependent_write": {
+      "client": "A",
+      "field": "child",
+      "value": 1,
+      "consistency": "tested write_cl",
+      "coordinator": "node2"
+    },
+    "verification_nodes": [
+      "node1",
+      "node2",
+      "node3"
+    ],
+    "verification_read_cl": "ONE"
+  },
+  "anomaly_criterion": "dependency established (A read parent=1), dependent child=1 write succeeded, and one joint query at the same verification node observed parent=0 and child=1",
+  "classification_notes": {
+    "dependency_read_failure": "availability failure; not a violation",
+    "dependency_not_established": "parent was not observed as 1; dependent write omitted",
+    "dependent_write_failure": "availability failure; not a violation",
+    "all_unavailable_under_fault": "recorded as the relevant operation failure",
+    "wfr_anomaly": "possible anomaly under this experimental criterion, not a general proof"
+  },
+  "started_at": "2026-09-25T13:32:45.141525+08:00",
+  "status": "completed",
+  "recovery": "not_needed",
+  "finished_at": "2026-09-25T13:32:50.568763+08:00"
+}

@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 RUN_PY="$SCRIPT_DIR/run.py"
-RESULT_DIR="$PROJECT_ROOT/results"
+RESULT_DIR="$PROJECT_ROOT/results/monotonic_reads"
 
 mkdir -p "$RESULT_DIR"
 

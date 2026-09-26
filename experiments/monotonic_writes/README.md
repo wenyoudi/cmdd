@@ -34,6 +34,8 @@ The experiment tests six `(W1, W2)` consistency-level pairs:
 | `ALL` | `ONE` |
 | `ONE` | `ALL` |
 
+Each consistency-level configuration uses 10 independent trials per repetition, and the formal experiment is independently repeated three times.
+
 ## Scenarios
 
 ### Normal
@@ -60,7 +62,7 @@ If an operation cannot satisfy its requested consistency level, the resulting fa
 
 ## Running the Experiment
 
-Run all commands from the repository root. If no individual consistency levels are specified, the script executes all six `(W1, W2)` configurations.
+Run all commands from the repository root. If no individual consistency levels are specified, the script executes all six `(W1, W2)` configurations. Each scenario is executed three times independently. Each execution uses `--iterations 10` and produces a separate result directory with a unique run ID.
 
 Normal operation:
 
@@ -70,6 +72,7 @@ python experiments/monotonic_writes/run.py \
   --iterations 10
 ```
 
+
 Node failure:
 
 ```bash
@@ -78,6 +81,7 @@ python experiments/monotonic_writes/run.py \
   --iterations 10
 ```
 
+
 Network partition:
 
 ```bash
@@ -85,6 +89,7 @@ python experiments/monotonic_writes/run.py \
   --scenario partition \
   --iterations 10
 ```
+
 
 To run one consistency-level pair, specify both write consistency levels. For example:
 
@@ -109,6 +114,27 @@ The directory contains:
 - `trials.csv`: trial- and operation-level observations.
 - `summary.csv`: aggregated results for each `(W1, W2)` consistency-level pair.
 - `metadata.json`: experiment configuration and execution metadata.
+
+## Formal Experimental Results
+
+Results below are aggregated across three independent repetitions, with 10 trials per consistency-level configuration in each repetition.
+
+### Normal Operation
+
+All six consistency-level configurations completed successfully across the three repetitions. For each configuration, all 30 trials completed and produced 90 node-level verification observations, all of which returned version `2`. No stale version-`0` observations or possible version-`1` MW ordering anomalies were observed.
+
+### Node Failure
+
+For `ONE/ONE`, `ONE/QUORUM`, `QUORUM/ONE`, and `QUORUM/QUORUM`, all 30 trials completed successfully. Each configuration produced 60 verification observations through the two surviving nodes, all of which returned version `2`. No possible MW ordering anomalies were observed.
+
+For `ALL/ONE`, `W1` failed in all 30 trials because consistency level `ALL` could not be satisfied while node 3 was unavailable. For `ONE/ALL`, `W2` failed in all 30 trials for the same reason. These are availability failures rather than MW anomalies.
+
+### Network Partition
+
+For `ONE/ONE`, `ONE/QUORUM`, `QUORUM/ONE`, and `QUORUM/QUORUM`, all 30 trials completed successfully. For each configuration, nodes 1 and 2 produced 60 version-`2` observations in total, while isolated node 3 produced 30 stale version-`0` observations. No version-`1` observation was recorded.
+
+For `ALL/ONE`, `W1` failed in all 30 trials, while for `ONE/ALL`, `W2` failed in all 30 trials because the required consistency level could not be satisfied across the partition.
+
 
 ## Limitation
 

@@ -1,0 +1,66 @@
+{
+  "run_id": "f2daa3ef-231d-4fb3-b80b-0e8249ef6c66",
+  "model": "MW",
+  "scenario": "node_failure",
+  "iterations": 10,
+  "schema_version": 3,
+  "row_grain": "operation",
+  "replication_factor": 3,
+  "pairs": [
+    [
+      "ONE",
+      "ONE"
+    ],
+    [
+      "ONE",
+      "QUORUM"
+    ],
+    [
+      "QUORUM",
+      "ONE"
+    ],
+    [
+      "QUORUM",
+      "QUORUM"
+    ],
+    [
+      "ALL",
+      "ONE"
+    ],
+    [
+      "ONE",
+      "ALL"
+    ]
+  ],
+  "mw_protocol": {
+    "baseline_version": 0,
+    "write1_version": 1,
+    "write2_version": 2,
+    "write1_coordinator": "node1",
+    "write2_coordinator": "node2",
+    "verification_nodes": [
+      "node1",
+      "node2"
+    ],
+    "verification_read_cl": "ONE"
+  },
+  "observation_semantics": {
+    "version_2": "expected latest state after W1 and W2",
+    "version_0": "stale pre-write replica state; not classified as an MW ordering violation",
+    "version_1": "possible MW ordering anomaly under the experimental criterion"
+  },
+  "timestamp_design": {
+    "baseline": "baseline_ts",
+    "write1": "baseline_ts + 1",
+    "write2": "baseline_ts + 2",
+    "limitation": "Explicit increasing Cassandra timestamps encode the intended W1->W2 order. Cassandra timestamp-based last-write-wins conflict resolution may help preserve this order, so absence of an observed reversal is not proof of a general MW guarantee."
+  },
+  "started_at": "2026-09-25T12:56:07.228028+08:00",
+  "status": "completed",
+  "recovery": "verified",
+  "fault_views": {
+    "1": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack \nDN  172.18.0.3  171.82 KiB  16      100.0%            99b43de3-3e31-4178-bfbc-82a6f08985d5  rack1\nUN  172.18.0.2  182.74 KiB  16      100.0%            014a5840-ec6c-466d-8133-ba51cc0355aa  rack1\nUN  172.18.0.4  191.49 KiB  16      100.0%            4f1f93a3-333d-4632-9da9-7709abbe86a7  rack1\n\n",
+    "2": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack \nDN  172.18.0.3  171.82 KiB  16      100.0%            99b43de3-3e31-4178-bfbc-82a6f08985d5  rack1\nUN  172.18.0.2  182.74 KiB  16      100.0%            014a5840-ec6c-466d-8133-ba51cc0355aa  rack1\nUN  172.18.0.4  191.49 KiB  16      100.0%            4f1f93a3-333d-4632-9da9-7709abbe86a7  rack1\n\n"
+  },
+  "finished_at": "2026-09-25T12:56:28.385404+08:00"
+}

@@ -153,7 +153,7 @@ The following combinations are tested:
 
 The antecedent `parent = 1` write is fixed at `QUORUM`.
 
-Each configuration is repeated 10 times in the formal experiments.
+Each configuration uses 10 independent trials per repetition, and the formal experiment is independently repeated three times.
 
 ---
 
@@ -265,6 +265,8 @@ python experiments/writes_follow_reads/run.py \
   --iterations 10
 ```
 
+Each scenario is executed three times independently. Each execution uses --iterations 10 and produces a separate result directory with a unique run ID.
+
 ### Node Failure
 
 ```bash
@@ -365,22 +367,24 @@ Records run-level metadata and experimental configuration.
 
 All six consistency-level combinations completed successfully.
 
-For every configuration:
+Aggregated across the three repetitions, for every configuration:
 
 ```text
-trials                   = 10
-dependency_established   = 10
-completed_trials         = 10
-successful_verifications = 30
+trials                   = 30
+dependency_established   = 30
+completed_trials         = 30
+successful_verifications = 90
 wfr_anomalies            = 0
 ```
 
 No operation failures or possible WFR anomalies were observed.
 
-Formal result directory:
+Formal result directories:
 
 ```text
 results/writes_follow_reads/normal_05119d90-368c-4d42-9ef5-a7671346720d
+results/writes_follow_reads/normal_b3d6d95d-0ef4-43e4-9706-6ec88a924041
+results/writes_follow_reads/normal_e61e74a8-2998-455c-808a-6b728d0db26e
 ```
 
 ---
@@ -396,13 +400,13 @@ QUORUM / ONE
 QUORUM / QUORUM
 ```
 
-all 10 trials completed successfully.
+all 30 trials completed successfully.
 
 Each configuration produced:
 
 ```text
-completed_trials         = 10
-successful_verifications = 20
+completed_trials         = 30
+successful_verifications = 60
 wfr_anomalies            = 0
 ```
 
@@ -414,7 +418,7 @@ For:
 ALL / ONE
 ```
 
-all 10 dependency reads failed because `READ ALL` could not obtain responses from all three replicas while `node3` was down.
+all 30 dependency reads failed because `READ ALL` could not obtain responses from all three replicas while `node3` was down.
 
 For:
 
@@ -422,14 +426,16 @@ For:
 ONE / ALL
 ```
 
-the dependency was established in all 10 trials, but all 10 dependent writes failed because `WRITE ALL` could not obtain acknowledgements from all replicas.
+the dependency was established in all 30 trials, but all 30 dependent writes failed because `WRITE ALL` could not obtain acknowledgements from all replicas.
 
 These are availability failures rather than WFR anomalies.
 
-Formal result directory:
+Formal result directories:
 
 ```text
 results/writes_follow_reads/node_failure_7f830685-0364-4fd0-a77a-76c97b622daf
+results/writes_follow_reads/node_failure_12b2ec53-76be-4d3d-af53-dff041596fa2
+results/writes_follow_reads/node_failure_7043fe77-a877-4681-9caf-1d6fb186dcac
 ```
 
 ---
@@ -444,7 +450,7 @@ For:
 ONE / ONE
 ```
 
-all 10 trials completed and 10 possible WFR anomalies were observed.
+all 30 trials completed and 30 possible WFR anomalies were observed.
 
 For:
 
@@ -452,7 +458,7 @@ For:
 QUORUM / ONE
 ```
 
-all 10 trials also completed and 10 possible WFR anomalies were observed.
+all 30 trials also completed and 30 possible WFR anomalies were observed.
 
 In these configurations, the isolated `node3` could accept the dependent write at CL `ONE` while still lacking the antecedent value.
 
@@ -471,7 +477,7 @@ QUORUM / QUORUM
 ONE / ALL
 ```
 
-the dependency was established, but all dependent writes failed because isolated `node3` could not obtain enough replica acknowledgements.
+the dependency was established in all 30 trials, but all 30 dependent writes failed because isolated node3 could not obtain enough replica acknowledgements.
 
 For:
 
@@ -479,12 +485,14 @@ For:
 ALL / ONE
 ```
 
-all dependency reads failed because the partition prevented `READ ALL` from reaching all replicas.
+all 30 dependency reads failed because the partition prevented READ ALL from reaching all replicas.
 
-Formal result directory:
+Formal result directories:
 
 ```text
 results/writes_follow_reads/partition_ae597f8e-f0e7-439f-bb7f-4760f40d4dd2
+results/writes_follow_reads/partition_07e9ebb6-514c-4017-a6ff-fc85ff38a9d0
+results/writes_follow_reads/partition_ed3d0459-006f-4c09-b11f-65790002555f
 ```
 
 ---

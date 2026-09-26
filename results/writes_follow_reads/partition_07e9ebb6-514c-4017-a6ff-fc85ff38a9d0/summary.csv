@@ -1,0 +1,7 @@
+﻿read_cl,write_cl,trials,dependency_established,completed_trials,successful_verifications,wfr_anomalies,parent_write_failed,dependency_read_failed,dependency_not_established,dependent_write_failed,verify_failed
+ONE,ONE,10,10,10,30,10,0,0,0,0,0
+ONE,QUORUM,10,10,0,0,0,0,0,0,10,0
+QUORUM,ONE,10,10,10,30,10,0,0,0,0,0
+QUORUM,QUORUM,10,10,0,0,0,0,0,0,10,0
+ALL,ONE,10,0,0,0,0,0,10,0,0,0
+ONE,ALL,10,10,0,0,0,0,0,0,10,0
