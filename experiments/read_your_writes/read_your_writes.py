@@ -16,7 +16,9 @@ from cassandra import ConsistencyLevel
 from cassandra.cluster import Cluster, ExecutionProfile, EXEC_PROFILE_DEFAULT
 from cassandra.policies import WhiteListRoundRobinPolicy, FallthroughRetryPolicy
 
-ROOT = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+RESULTS_DIR = PROJECT_ROOT / "results" / "read_your_writes"
 PAIRS = [('ONE', 'ONE'), ('ONE', 'QUORUM'), ('QUORUM', 'ONE'),
          ('QUORUM', 'QUORUM'), ('ALL', 'ONE'), ('ONE', 'ALL')]
 CHAIN = 'CMDD_RYW'
@@ -183,7 +185,7 @@ def save(folder, rows, metadata):
 
 def run(args):
     run_id = str(uuid.uuid4())
-    folder = ROOT / 'results' / f'{args.scenario}_{run_id}'
+    folder = RESULTS_DIR / f'{args.scenario}_{run_id}'
     folder.mkdir(parents=True)
     # Each measured operation has a row; a write/read pair shares a trial_id.
     rows, clusters, sessions = [], [], []

@@ -4,7 +4,9 @@ import csv
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+RESULTS_DIR = PROJECT_ROOT / "results" / "read_your_writes"
 SCENARIOS = {'normal': 'Normal', 'node_failure': 'Node failure', 'partition': 'Network partition'}
 PAIRS = [('ONE', 'ONE'), ('ONE', 'QUORUM'), ('QUORUM', 'ONE'),
          ('QUORUM', 'QUORUM'), ('ALL', 'ONE'), ('ONE', 'ALL')]
@@ -63,8 +65,12 @@ def collect(results):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--results-dir', type=Path, default=ROOT / 'results')
-    parser.add_argument('--output-dir', type=Path, default=ROOT / 'results' / 'aggregated')
+    parser.add_argument('--results-dir', type=Path, default=RESULTS_DIR)
+    parser.add_argument(
+        '--output-dir',
+        type=Path,
+        default=RESULTS_DIR / 'aggregated'
+    )
     args = parser.parse_args()
     try:
         table = collect(args.results_dir)

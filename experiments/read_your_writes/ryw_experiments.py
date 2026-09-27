@@ -1,5 +1,9 @@
 import subprocess
+import sys
 import time
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 # ========= Experiment Settings =========
 SCENARIOS = ["normal", "node_failure", "partition"]
@@ -17,8 +21,8 @@ for scenario in SCENARIOS:
         print(f"\nRun {run}/{REPEATS}")
 
         cmd = [
-            ".venv/Scripts/python.exe",
-            "read_your_writes.py",
+            sys.executable,
+            str(SCRIPT_DIR / "read_your_writes.py"),
             "--scenario", scenario,
             "--iterations", str(ITERATIONS)
         ]

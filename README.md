@@ -10,13 +10,13 @@ The experiment uses a fixed number of independent trials. Each trial uses a new 
 
 | File | Purpose |
 |---|---|
-| `read_your_writes.py` | Runs experiments, injects faults, records operations, and restores the cluster. |
-| `ryw_experiments.py` | Runs all three scenarios sequentially, with 100 trials per configuration and three repetitions per scenario. |
-| `summarize_ryw.py` | Combines eligible experiment summaries into one CSV table. |
+| `experiments/read_your_writes/read_your_writes.py` | Runs experiments, injects faults, records operations, and restores the cluster. |
+| `experiments/read_your_writes/ryw_experiments.py` | Runs all three scenarios sequentially, with 100 trials per configuration and three repetitions per scenario. |
+| `experiments/summarize_ryw.py` | Combines eligible experiment summaries into one CSV table. |
 | `docker-compose.yml` | Defines the three-node Cassandra deployment. |
 | `Dockerfile.cassandra` | Installs iptables on node3 for network-partition experiments. |
 | `environment.yml` | Defines the Python environment and dependencies. |
-| `results/` | Contains operation logs, per-run summaries, and metadata. |
+| `results/read_your_writes/` | Contains operation logs, per-run summaries, and metadata. |
 
 ## 1. Environment and Installation
 
@@ -65,7 +65,7 @@ To update an existing environment:
 conda env update -n DSA5208_Project1_CMDD -f environment.yml
 ```
 
-For individual experiments and CSV aggregation in Conda, replace `.venv/Scripts/python.exe` with `python`. The batch runner currently hardcodes `.venv/Scripts/python.exe`; a Conda-only installation must either use the individual commands or update that interpreter path before using the batch runner.
+For individual experiments and CSV aggregation in Conda, replace `.venv/Scripts/python.exe` with `python`. The batch runner uses the same Python interpreter that was used to launch it.
 
 `pyasyncore` supplies compatibility support required by the driver on Python 3.12. Docker, Cassandra, and iptables are provided separately through the Docker deployment.
 
@@ -103,7 +103,7 @@ Run experiments sequentially. Other group members should not use the cluster whi
 ### Quick check
 
 ```powershell
-.venv/Scripts/python.exe read_your_writes.py --iterations 3
+.venv/Scripts/python.exe experiments/read_your_writes/read_your_writes.py --iterations 3
 ```
 
 Without arguments, the experiment runs the normal scenario with 30 trials per configuration. Both defaults can be overridden.
@@ -111,9 +111,9 @@ Without arguments, the experiment runs the normal scenario with 30 trials per co
 ### One scenario, all six configurations
 
 ```powershell
-.venv/Scripts/python.exe read_your_writes.py --scenario normal --iterations 100
-.venv/Scripts/python.exe read_your_writes.py --scenario node_failure --iterations 100
-.venv/Scripts/python.exe read_your_writes.py --scenario partition --iterations 100
+.venv/Scripts/python.exe experiments/read_your_writes/read_your_writes.py --scenario normal --iterations 100
+.venv/Scripts/python.exe experiments/read_your_writes/read_your_writes.py --scenario node_failure --iterations 100
+.venv/Scripts/python.exe experiments/read_your_writes/read_your_writes.py --scenario partition --iterations 100
 ```
 
 ### One configuration
@@ -121,13 +121,13 @@ Without arguments, the experiment runs the normal scenario with 30 trials per co
 Specify both consistency levels together:
 
 ```powershell
-.venv/Scripts/python.exe read_your_writes.py --scenario normal --iterations 100 --write-cl QUORUM --read-cl QUORUM
+.venv/Scripts/python.exe experiments/read_your_writes/read_your_writes.py --scenario normal --iterations 100 --write-cl QUORUM --read-cl QUORUM
 ```
 
 ### Full batch
 
 ```powershell
-.venv/Scripts/python.exe ryw_experiments.py
+.venv/Scripts/python.exe experiments/read_your_writes/ryw_experiments.py
 ```
 
 The current batch settings are `ITERATIONS = 100` and `REPEATS = 3`. A fully completed batch produces nine runs and 5,400 trials:
@@ -138,7 +138,7 @@ The script waits five seconds after each successful run. If a run exits with an 
 
 ## 4. Output Files and Interpretation
 
-Each run creates a separate `results/<scenario>_<UUID>/` directory containing:
+Each run creates a separate `results/read_your_writes/<scenario>_<UUID>/` directory containing:
 
 | File | Contents |
 |---|---|
@@ -190,23 +190,23 @@ The fixed-trial format uses `schema_version=2` and `row_grain=operation`. Do not
 After collecting complete runs for all three scenarios:
 
 ```powershell
-.venv/Scripts/python.exe summarize_ryw.py
+.venv/Scripts/python.exe experiments/read_your_writes/summarize_ryw.py
 ```
 
 The script writes only one aggregated table:
 
 ```text
-results/aggregated/ryw_complete_table.csv
+results/read_your_writes/aggregated/ryw_complete_table.csv
 ```
 
 It sums counts across eligible runs and then calculates violation rates. It does not average per-run percentages. The table contains 18 rows: three scenarios times six configurations.
 
-The aggregator reads run directories directly beneath `results/`, requires all six configurations in each eligible run, rejects duplicate run IDs and inconsistent counts, and skips incomplete runs or fault runs without verified recovery. Each scenario must have at least one eligible run. Keep single-configuration checks separate from the collection used for the final table.
+The aggregator reads run directories directly beneath `results/read_your_writes/`, requires all six configurations in each eligible run, rejects duplicate run IDs and inconsistent counts, and skips incomplete runs or fault runs without verified recovery. Each scenario must have at least one eligible run. Keep single-configuration checks separate from the collection used for the final table.
 
 All eligible runs in the selected input directory are included, including additional repetitions collected later. To select another collection and output directory:
 
 ```powershell
-.venv/Scripts/python.exe summarize_ryw.py --results-dir path/to/runs --output-dir path/to/output
+.venv/Scripts/python.exe experiments/read_your_writes/summarize_ryw.py --results-dir path/to/runs --output-dir path/to/output
 ```
 
 Close the output CSV in Excel or WPS before regenerating it if the application locks the file.
@@ -216,7 +216,7 @@ Close the output CSV in Excel or WPS before regenerating it if the application l
 Fault experiments attempt to restore the cluster on completion or an exception. If the process is forcibly terminated, run:
 
 ```powershell
-.venv/Scripts/python.exe read_your_writes.py --recover
+.venv/Scripts/python.exe experiments/read_your_writes/read_your_writes.py --recover
 ```
 
 This starts node3, removes only this experiment's `CMDD_RYW` rules, and verifies that all three nodes are UN and reachable through CQL. It does not remove firewall rules belonging to other experiments.
@@ -233,6 +233,6 @@ To check dependency imports and command-line options without starting experiment
 
 ```powershell
 .venv/Scripts/python.exe -c "import cassandra, asyncore; print(cassandra.__version__)"
-.venv/Scripts/python.exe read_your_writes.py --help
-.venv/Scripts/python.exe summarize_ryw.py --help
+.venv/Scripts/python.exe experiments/read_your_writes/read_your_writes.py --help
+.venv/Scripts/python.exe experiments/read_your_writes/summarize_ryw.py --help
 ```
